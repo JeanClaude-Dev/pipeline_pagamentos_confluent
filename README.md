@@ -1,27 +1,29 @@
-# Pipeline de pagamentos no Confluent Cloud
+# Pipeline de pagamentos em streaming | Confluent Cloud
 
-Projeto do desafio: PostgreSQL (Neon) -> CDC Debezium -> Kafka/Avro -> Flink SQL -> alerta de fraude.
+Implementacao de referencia de uma arquitetura de pagamentos orientada a eventos: PostgreSQL (Neon) -> Debezium CDC -> Kafka/Avro -> Flink SQL -> alertas de fraude.
 
-Este repositorio documenta a implementacao do desafio no Confluent Cloud. O `setup.sh` prepara o banco e os dados; os recursos do Confluent Cloud sao criados explicitamente para evitar custos ou exclusoes inesperadas. As evidencias devem ser capturadas no ambiente usado e sanitizadas antes da publicacao.
+Este repositorio demonstra captura de alteracoes de dados, processamento temporal e deteccao de padroes de transacoes. Inclui scripts SQL, contratos Avro, configuracao-base do conector, um consumidor idempotente e evidencias sanitizadas de execucoes no Confluent Cloud.
 
-## O que sera demonstrado
+> **Escopo:** implementacao de referencia para portfolio, nao um servico de pagamentos em producao. As evidencias documentam execucoes reais; alguns itens de observabilidade, governanca e validacao ponta a ponta ainda estao pendentes e sao identificados abaixo.
 
-1. Environment e cluster Kafka Basic, com identidades separadas para produtor e consumidor.
-2. Schemas Avro e validacao de compatibilidade; os testes estao registrados em `evidencias/02-compatibilidade-schema.txt`.
-3. CDC PostgreSQL com INSERT, UPDATE, DELETE e tombstone.
-4. Temporal join entre transacoes e contas e alerta para tres transacoes aprovadas do mesmo cartao em 60 segundos.
-5. Metricas, ACLs, custo, confiabilidade e limpeza dos recursos, com evidencias do ambiente.
+## Arquitetura e capacidades
 
-## Pre-requisitos
+1. PostgreSQL fornece os dados de clientes, contas, cartoes, estabelecimentos e transacoes.
+2. Debezium captura INSERT, UPDATE e DELETE por logical replication e publica envelopes CDC em Kafka.
+3. Schema Registry aplica contratos Avro e regras de compatibilidade.
+4. Flink SQL enriquece transacoes com dados de conta por temporal join e identifica tres ou mais transacoes aprovadas do mesmo cartao em uma janela de 60 segundos.
+5. Um consumidor independente decodifica alertas Avro, persiste-os em SQLite e tolera reentregas por meio de uma chave idempotente.
 
-- Conta Confluent Cloud e acesso ao ambiente do desafio.
-- Conta Neon (ou outro PostgreSQL que permita logical replication).
-- Git Bash ou WSL, cliente `psql` e `envsubst`.
-- Confluent CLI para consultar recursos e custos.
+## Tecnologias
 
-O cluster Basic pode gerar cobranca. Confira a regiao e o preco no painel, anote o horario de inicio e exclua o cluster assim que terminar.
+- Confluent Cloud: Apache Kafka, Schema Registry, Connect e Flink.
+- PostgreSQL compativel com logical replication (ex.: Neon).
+- Python 3.10+ e `confluent-kafka[avro]` para o consumidor.
+- Git Bash ou WSL, `psql`, `envsubst` e Confluent CLI para configurar e inspecionar recursos cloud.
 
-## 1. Preparar o projeto e o PostgreSQL
+Recursos cloud podem gerar custos. Revise precos e configuracao da conta antes de criar recursos e acompanhe o billing durante a execucao.
+
+## PostgreSQL e dados
 
 No Git Bash/WSL, entre nesta pasta e crie seu arquivo local de configuracao:
 
@@ -29,7 +31,7 @@ No Git Bash/WSL, entre nesta pasta e crie seu arquivo local de configuracao:
 cp .env.example .env
 ```
 
-No painel do Neon, crie um banco `payments`, habilite logical replication nas configuracoes do projeto e reinicie o banco se o painel solicitar. Copie a connection string para `DATABASE_URL` em `.env`. Para o conector, use o hostname de conexao direta do Neon em `CDC_DATABASE_HOST` (nao o endpoint pooled) e preencha `CDC_DATABASE_NAME`. Use aspas na connection string se ela tiver caracteres especiais. Nunca compartilhe o arquivo `.env`.
+Configure um banco PostgreSQL com logical replication habilitada. Armazene a connection string em `DATABASE_URL`; para o conector, use o hostname de conexao direta em `CDC_DATABASE_HOST` (nao um endpoint pooled) e preencha `CDC_DATABASE_NAME`. Use aspas na connection string se ela tiver caracteres especiais. Nunca compartilhe o arquivo `.env`.
 
 Prepare as tabelas e a massa de dados como proprietario do banco:
 
@@ -39,7 +41,7 @@ bash setup.sh
 
 O resultado esperado e customers=200, accounts=240, cards=320, merchants=60 e transactions=2000. O script tambem aplica `REPLICA IDENTITY FULL`. Se a conexao falhar, confira `DATABASE_URL`, acesso de rede e se `psql` esta instalado.
 
-Agora, como proprietario, crie o usuario de menor privilegio. Troque a senha pelo valor local de `CDC_DATABASE_PASSWORD`:
+Como proprietario do banco, crie um usuario dedicado de menor privilegio. Troque a senha pelo valor local de `CDC_DATABASE_PASSWORD`:
 
 ```sql
 CREATE ROLE cdc_user WITH LOGIN REPLICATION PASSWORD 'SENHA_LOCAL';
@@ -58,16 +60,14 @@ FOR TABLE customers, accounts, cards, merchants, transactions;
 
 Se a publication ja existir, nao a crie novamente. Em um banco ja usado, confira as tabelas antes de rodar a carga: IDs existentes nao sao sobrescritos.
 
-## 2. Camada 1: ambiente e identidades
+## Identidades e controle de acesso
 
 No Confluent Cloud:
 
-1. Crie o environment `desafio-final`.
-2. Crie um cluster Kafka Basic chamado `desafio-basic`, na regiao escolhida para o desafio (o exemplo do guia usa AWS `us-east-1`).
-3. Crie as service accounts `desafio-producer` e `desafio-consumer`.
-4. Para `desafio-producer`, aplique `WRITE` e `DESCRIBE` nos recursos `desafio-*`, como pede o desafio. Como essa identidade tambem sera usada pelo conector, aplique `CREATE`, `WRITE` e `DESCRIBE` nos topicos `payments.*` que o CDC cria.
-5. Para `desafio-consumer`, aplique `READ` e `DESCRIBE` nos topicos `desafio-*` e `payments.*`, mais `READ` no consumer group `desafio-*`.
-6. Gere chaves Kafka separadas para cada service account e uma chave do Schema Registry para o produtor/conector. Guarde os IDs e chaves em `.env`, nunca no Git. O conector usa `CONFLUENT_API_KEY`/`CONFLUENT_API_SECRET`; consumidores usam `CONSUMER_KAFKA_API_KEY`/`CONSUMER_KAFKA_API_SECRET`.
+1. Use um environment e um cluster Kafka compativeis com a regiao dos demais recursos.
+2. Mantenha identidades distintas para producao/CDC e consumo.
+3. Aplique apenas as ACLs necessarias: `CREATE`, `WRITE` e `DESCRIBE` nos topicos CDC para a identidade produtora; `WRITE` e `DESCRIBE` no topico de alertas; `READ` e `DESCRIBE` nos topicos consumidos e `READ` no consumer group para a identidade consumidora.
+4. Gere chaves Kafka distintas por service account e credenciais apropriadas para o Schema Registry. Guarde os valores apenas em `.env`, nunca no Git. O conector usa `CONFLUENT_API_KEY`/`CONFLUENT_API_SECRET`; consumidores usam `CONSUMER_KAFKA_API_KEY`/`CONSUMER_KAFKA_API_SECRET`.
 
 Confira no terminal:
 
@@ -76,23 +76,23 @@ confluent iam service-account list
 confluent kafka acl list --service-account ID_DA_SERVICE_ACCOUNT
 ```
 
-Salve as saidas reais em `evidencias/` ou no README. Na tabela de seguranca, escreva cada service account, ACL e motivo. A identidade do conector precisa publicar nos topicos CDC; nao use sua chave pessoal como credencial permanente do conector.
+Registre identidades e permissoes aplicadas para permitir auditoria. A identidade do conector precisa publicar nos topicos CDC; nao use uma chave pessoal como credencial permanente de workload. As ACLs verificadas neste ambiente estao em `evidencias/04-seguranca-acls.txt`.
 
-## 3. Camada 2: schemas e compatibilidade
+## Contratos e governanca de schemas
 
 Os contratos de dominio estao em `schemas/`. `amount` usa decimal(15,2). Marque `customer_id` e `document_number` como PII e `card_number` como PCI nos schemas CDC das tabelas `accounts`, `customers` e `cards`. `card_id` e apenas a chave de ligacao, nao o numero do cartao. As tags sao metadados do Schema Registry, entao aplique-as no painel do Registry aos campos, nao como texto nos dados.
 
 No Schema Registry, para os subjects usados pelo pipeline:
 
-1. Selecione compatibilidade `BACKWARD`.
+1. Configure compatibilidade `BACKWARD`.
 2. Registre a versao inicial do schema e capture a tela/saida.
 3. Teste uma versao que apenas adiciona `risk_level` como union null/string com default null. A validacao deve aceitar.
 4. Teste uma versao que remove um campo obrigatorio. A validacao deve rejeitar.
-5. Registre os dois resultados em `evidencias/`.
+5. Registre os resultados para tornar a evolucao do contrato verificavel.
 
-O conector cria subjects Avro proprios para os envelopes Debezium. Confira os subjects realmente criados e nao registre os arquivos `.avsc` por cima de um subject de envelope. Faca os dois testes BACKWARD em subjects de teste separados. O Flink Cloud pode exigir compatibilidade `FULL` ou `FULL_TRANSITIVE` para schemas que ele mesmo grava; mantenha esse requisito separado do teste BACKWARD do desafio.
+O conector cria subjects Avro proprios para os envelopes Debezium. Confira os subjects realmente criados e nao registre os arquivos `.avsc` por cima de um subject de envelope. Faca os dois testes BACKWARD em subjects de teste separados. O Flink Cloud pode exigir compatibilidade `FULL` ou `FULL_TRANSITIVE` para schemas que ele mesmo grava; mantenha esse requisito separado dos testes BACKWARD dos schemas CDC.
 
-## 4. Camada 3: CDC PostgreSQL
+## Captura de alteracoes com Debezium
 
 No Git Bash/WSL, carregue as variaveis de `.env` e gere um arquivo de configuracao temporario. JSON nao expande variaveis sozinho:
 
@@ -128,17 +128,17 @@ DELETE FROM transactions WHERE transaction_id = 'tx-cdc-test-001';
 
 No topico de transacoes, capture INSERT `op=c` (before nulo), UPDATE `op=u` (before e after preenchidos), DELETE `op=d` (after nulo) e a mensagem tombstone subsequente. A evidencia real do registro `cdc-evidence-20261006-001` esta em `evidencias/01-envelopes-cdc.json`, com os offsets e campos pessoais omitidos.
 
-## 5. Camada 4: Flink SQL
+## Processamento com Flink SQL
 
 Crie um workspace/statement no Flink associado ao cluster. Execute `SHOW TABLES;` e localize as tabelas inferidas `payments.public.accounts` e `payments.public.transactions`. Os nomes de topico com pontos precisam ficar entre crases para serem tratados como identificadores unicos. Rode `SHOW CREATE TABLE` para conferir colunas e chave primaria. O Flink Cloud infere as tabelas CDC pelo topico e schema Avro; nao execute um segundo `CREATE TABLE` para copiar o topico.
 
 Antes do temporal join, configure `payments.public.accounts` com `cleanup.policy=compact` no Kafka. Isso permite ao Flink reconhecer `account_id` como chave primaria da tabela de contas. Execute `sql/01_tables.sql` em ordem. A view usa `$rowtime` e o temporal join `FOR SYSTEM_TIME AS OF t.event_time`; `PROCTIME()` nao e suportado neste workspace Cloud. A regra `MATCH_RECOGNIZE` precisa da tabela de transacoes em append mode, configurado pelo `ALTER TABLE` no arquivo SQL.
 
-Depois execute `sql/02_fraud_rules.sql`. A tabela cria o topico `desafio.fraud.detected` em Avro Registry e a regra particiona por `card_id`, procurando tres ou mais transacoes aprovadas em ate 60 segundos. Configure compatibilidade `FULL` no subject de saida `desafio.fraud.detected-value`, conforme exigido pelo sink Flink; mantenha esse ajuste separado dos testes `BACKWARD` dos schemas de CDC.
+Depois execute `sql/02_fraud_rules.sql`. A tabela cria o topico `desafio.fraud.detected` em Avro Registry e a regra particiona por `card_id`, procurando tres ou mais transacoes aprovadas em ate 60 segundos. Configure compatibilidade `FULL` no subject de saida `desafio.fraud.detected-value`, conforme requerido pelo sink Flink; mantenha esse ajuste separado dos testes `BACKWARD` dos schemas de CDC.
 
 **Semantica de append:** o topico CDC de transacoes inclui updates e deletes. `changelog.mode=append` faz cada update ser tratado como um novo evento e descarta deletes para esta regra. Documente essa limitacao ao interpretar os alertas. O topico de contas, por outro lado, deve manter compactacao para o temporal join.
 
-## 6. Camada 5: operacao e encerramento
+## Operacao, confiabilidade e estado atual
 
 Evidencias reais capturadas ate agora:
 
@@ -147,55 +147,69 @@ Evidencias reais capturadas ate agora:
 - `evidencias/03-alerta-fraude.json`: alerta Avro real da carga seed e alerta de reteste correlacionado aos tres eventos aprovados; o primeiro lote `fraud-evidence` nao gerou alerta observavel.
 - `evidencias/04-seguranca-acls.txt`: identidades e ACLs observadas no cluster.
 - `evidencias/05-custos-status.txt`: consulta diaria de billing e estado dos recursos, ainda sem conciliacao final.
-- `evidencias/06-confiabilidade.txt`: fluxo, recuperacao e estrategia recomendada de idempotencia; nao existe consumidor implementado neste repositorio.
+- `evidencias/06-confiabilidade.txt`: fluxo, recuperacao, implementacao do consumidor idempotente e resultado dos testes locais.
 
-Antes da entrega, complete as evidencias pendentes abaixo:
+### Consumidor idempotente de alertas
 
-- **Observabilidade:** pico de `received_bytes` e lag do consumer group pela Metrics API. O CLI de lag informa que a operacao exige cluster Dedicated e nao funciona no cluster Basic deste desafio; veja `evidencias/05-custos-status.txt`.
+O consumidor em `consumer/consume_alerts.py` decodifica Avro via Schema Registry e persiste cada alerta em SQLite. A chave idempotente e um SHA-256 deterministico dos campos do alerta; a escrita SQLite e confirmada antes do commit do offset Kafka. Assim, se o processo cair entre essas duas operacoes, a reentrega nao cria um segundo alerta.
+
+Instale a dependencia e exporte as variaveis locais do `.env` no Git Bash/WSL:
+
+```bash
+python -m pip install -r consumer/requirements.txt
+set -a
+source .env
+set +a
+python consumer/consume_alerts.py
+```
+
+O consumidor permanece ativo ate ser interrompido. Para uma leitura limitada, use `--max-messages 1`. O estado local fica em `data/fraud-alerts.sqlite`, ignorado pelo Git; preserve esse arquivo para manter a deduplicacao após reinicios. Credenciais do consumer e do Schema Registry devem ser dedicadas e nunca publicadas.
+
+Execute os testes locais de idempotencia e reentrega com:
+
+```bash
+python -m unittest discover -s consumer -p "test_*.py" -v
+```
+
+Os testes simulam falha no commit do offset apos a persistencia e verificam que a reentrega permanece idempotente. Um smoke test real conseguiu ler do Kafka, mas o Schema Registry negou a leitura do schema (HTTP 403, SR 40301); a verificacao cloud permanece pendente ate a credencial do consumer ter permissao de leitura do schema correto.
+
+### Validacoes ainda pendentes neste ambiente
+
+- **Observabilidade:** pico de `received_bytes` e lag do consumer group pela Metrics API. O CLI de lag informa que a operacao exige cluster Dedicated e nao funciona no cluster Basic utilizado; a tentativa na Metrics API retornou HTTP 401. Veja `evidencias/05-custos-status.txt`.
 - **Seguranca:** associar as tags PII/PCI ja criadas aos campos de schema indicados na secao 3; a tabela de ACLs e o estado das tags estao em `evidencias/04-seguranca-acls.txt`.
 - **Custos:** conciliar o periodo completo do teste e registrar duas alavancas usadas/possiveis (desligar o cluster quando ocioso e reduzir retencao/volume de dados).
-- **Confiabilidade:** implementar e testar um consumidor idempotente; o desenho operacional recomendado esta em `evidencias/06-confiabilidade.txt`.
-- **Teardown:** execute `bash teardown.sh` como checklist, depois exclua statements, conector, topicos e cluster no painel. Exclua o environment somente se estiver vazio e for exclusivo deste desafio.
+- **Confiabilidade:** consumidor implementado e testes locais aprovados; falta corrigir a permissao/credencial de leitura do Schema Registry e repetir o smoke test cloud.
+- **Recursos cloud:** o statement de fraude esta parado, mas o conector CDC continua RUNNING e o pool Flink permanece provisionado. `teardown.sh` descreve a remocao manual; nao executa exclusoes automaticamente para evitar afetar recursos compartilhados.
 
-Nao declare o teardown concluido enquanto statements, conector ou cluster ainda estiverem ativos. Registre a data/hora e o periodo consultado nas evidencias de custo; um valor de uma janela parcial nao representa o custo total do desafio.
+O custo documentado cobre apenas uma janela parcial; nao representa o custo total do periodo. A evidência detalha data, status observado e limitacoes da consulta. Nao remova recursos compartilhados sem verificar a propriedade e o impacto da exclusao.
 
-Confirme com as listas de statements, conectores e clusters que nada do projeto continua ativo. Cole os resultados reais (por exemplo `None found`) e o custo total. O script de teardown nao apaga recursos automaticamente para impedir exclusao acidental de recursos compartilhados.
+## Configuracao local e seguranca
 
-## Publicar e entregar
-
-Antes de publicar, confirme que `.env` nao esta sendo rastreado:
+O repositorio exclui `.env`, bancos SQLite locais e PDFs de referencia. Para validar a protecao do arquivo de configuracao:
 
 ```bash
 git check-ignore .env
 git status --short
 ```
 
-Crie um repositorio publico no GitHub com nome em minusculas e sem acentos, envie os arquivos do projeto e troque todos os exemplos sinteticos pelas evidencias reais. O checklist final:
-
-- [ ] As cinco camadas tem evidencias reais; nao ha marcador de evidencia pendente.
-- [ ] A carga tem as quantidades esperadas e o alerta de fraude foi observado.
-- [ ] Compatibilidade aceitou campo novo com default e rejeitou a remocao obrigatoria.
-- [ ] Nenhuma senha, chave ou arquivo `.env` foi enviado.
-- [ ] Custo total e teardown estao documentados.
-- [ ] O link enviado para a DIO e a pagina principal do repositorio publico.
-
-## Comecar
+## Reproduzir em outro ambiente
 
 1. Copie `.env.example` para `.env` e preencha as configuracoes localmente. O arquivo `.env` e ignorado pelo Git.
 2. Ajuste `connectors/cdc.json` para o banco, plugin e topicos usados no seu ambiente.
-3. Complete as tabelas e regras em `sql/` conforme os nomes e formatos registrados no Confluent.
-4. Execute os comandos de provisionamento especificos do seu ambiente. Revise recursos e custos antes de criar ou excluir qualquer recurso.
-5. Salve em `evidencias/` exemplos sanitizados de envelopes CDC, consultas, logs e capturas do desafio. Remova dados pessoais e credenciais.
+3. Revise as tabelas e regras em `sql/` para refletir os nomes e formatos do Schema Registry.
+4. Provisione explicitamente os recursos necessarios no Confluent Cloud e revise custos e impacto antes de criar ou excluir recursos.
+5. Ao registrar novas execucoes, sanitize as evidencias em `evidencias/`; remova dados pessoais e credenciais.
 
-Os scripts `setup.sh` e `teardown.sh` sao lembretes seguros: apontam para as etapas que precisam ser adaptadas ao ambiente do bootcamp e nao executam operacoes destrutivas.
+Os scripts `setup.sh` e `teardown.sh` sao guias operacionais: o primeiro prepara o banco e os dados; o segundo lista etapas de limpeza cloud sem executar operacoes destrutivas.
 
 ## Estrutura
 
 - `schemas/`: contratos Avro de conta e transacao.
 - `connectors/`: modelo de configuracao para o conector CDC.
-- `sql/`: ponto de partida para DDL Flink e regras de fraude.
-- `evidencias/`: exemplos e evidencias sanitizados do projeto.
+- `sql/`: DDL Flink e regra de deteccao de fraude.
+- `consumer/`: consumidor Kafka/Avro e testes automatizados de idempotencia.
+- `evidencias/`: registros sanitizados das execucoes observadas.
 
 ## Git
 
-O repositorio foi inicializado localmente. Para conferir o estado, use `git status`.
+Para revisar alteracoes locais e o estado do working tree, use `git status`.

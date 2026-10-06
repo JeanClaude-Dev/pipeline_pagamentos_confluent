@@ -10,9 +10,13 @@ Estado consultado:
 - Flink statement velocity-fraud-rule-v3: STOPPED apos reteste em 2026-10-06T19:03:08Z; offsets finais reportados: transactions 2015 e accounts 240.
 - Compute pool payments-flink (lfcp-pg532do): PROVISIONED, AWS sa-east-1, 0 CFU atual, maximo 5 CFUs. O pool nao foi removido.
 - Apos a captura, sete linhas temporarias de teste foram removidas do Postgres; a tabela transactions voltou a 2.000 linhas.
+- Alavanca de custo usada: o statement Flink foi parado apos o teste e o pool chegou a 0 CFU; o pool continua provisionado, portanto isso nao equivale a remover todos os custos.
+- Alavanca adicional possivel: reduzir retencao e volume dos topicos de teste; nao registrada como aplicada neste ambiente.
 
 Ressalvas:
 - Esta consulta diaria nao e o custo final de todo o desafio; o billing pode atrasar e o retorno nao listou uma linha de custo Flink.
 - O saldo de creditos promocionais visto anteriormente no Console nao substitui a conciliacao do periodo completo.
 - O conector CDC continua ativo e o pool Flink continua provisionado; confirme a conciliacao e autorize qualquer remocao adicional.
 - A consulta `confluent kafka consumer group lag list` nao esta disponivel neste cluster Basic; o CLI exige cluster Dedicated. A evidencia de lag/received_bytes pela Metrics API continua pendente.
+- Tentativa de consultar `io.confluent.kafka.server/received_bytes` pela Metrics API em 2026-10-06 retornou HTTP 401 com a credencial Cloud configurada; nenhum datapoint foi coletado.
+- O painel Metrics carregou com erros HTTP 429/400 no momento da verificacao; nenhum pico confiavel pode ser documentado a partir dessa tela.

@@ -8,9 +8,10 @@ Falhas e recuperacao:
 - Se o statement Flink parar, nao ha novos alertas enquanto estiver parado. Registre o estado e os offsets mais recentes antes de retomar ou recriar o statement.
 - Nao assuma entrega sem duplicatas depois de falhas/retries. O consumidor deve tolerar reentrega e so confirmar o offset depois de persistir com sucesso o efeito de negocio.
 
-Idempotencia recomendada para um consumidor:
-- Para eventos CDC, use a chave transaction_id junto com op e mantenha o processamento idempotente por particao/offset Kafka.
-- O schema atual do alerta nao tem uma chave primaria nem transaction_id. Antes de aplicar um efeito externo, derive um identificador estavel, por exemplo card_id + first_transaction_at + last_transaction_at + transaction_count, e grave-o com restricao de unicidade na mesma transacao do efeito.
-- O modo append da tabela de transacoes trata UPDATE como novo evento e ignora DELETE para a regra; a deduplicacao nao corrige essa diferenca semantica.
+Implementacao: `consumer/consume_alerts.py` consome os alertas Avro, grava-os em SQLite com `event_id` unico derivado de SHA-256 dos campos estaveis do alerta, e confirma o offset Kafka somente depois da transacao SQLite. Se o commit Kafka falhar apos a gravacao, a reentrega encontra a chave existente e nao duplica o alerta. O arquivo SQLite deve ser preservado entre reinicios.
 
-Limite desta evidencia: o projeto nao inclui codigo de consumidor nem teste de falha/reentrega. A chave de alerta acima e uma recomendacao de desenho, nao um comportamento ja implementado ou medido.
+Testes automatizados locais aprovados em 2026-10-06: quatro testes verificam reentrega normal, reentrega apos falha simulada no commit do offset, validacao de timestamp e criacao do banco persistente (`python -m unittest discover -s consumer -p "test_*.py" -v`).
+
+Smoke test Confluent Cloud em 2026-10-06: o consumer autenticou e leu do topico, mas a desserializacao falhou porque o Schema Registry respondeu HTTP 403 (SR 40301) ao buscar o schema. `GET /subjects` respondeu HTTP 200; a leitura do subject `desafio.fraud.detected-value` e sua versao mais recente respondeu HTTP 403. Nenhum offset foi confirmado pelo smoke test.
+
+Limite desta evidencia: a idempotencia foi exercitada localmente com SQLite em memoria; o teste online confirmou acesso ao Kafka, mas nao concluiu a leitura do schema nem a persistencia de um alerta real. O modo append da tabela de transacoes trata UPDATE como novo evento e ignora DELETE para a regra; a deduplicacao do consumidor nao corrige essa diferenca semantica.

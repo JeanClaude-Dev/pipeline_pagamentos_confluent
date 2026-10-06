@@ -8,6 +8,7 @@
 logs/
 *.log
 !evidencias/*.log
+/data/
 
 # Binarios e caches
 *.avro
