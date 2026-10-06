@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "Transaction",
+  "namespace": "com.bootcamp.payments",
+  "doc": "Transacao de pagamento. card_id e um identificador, nao o numero do cartao.",
+  "fields": [
+    { "name": "transaction_id", "type": "string" },
+    { "name": "account_id", "type": "string" },
+    { "name": "card_id", "type": "string" },
+    { "name": "amount", "type": { "type": "bytes", "logicalType": "decimal", "precision": 15, "scale": 2 } },
+    { "name": "currency", "type": "string", "default": "BRL" },
+    { "name": "status", "type": "string" },
+    { "name": "occurred_at", "type": { "type": "long", "logicalType": "timestamp-millis" } }
+  ]
+}

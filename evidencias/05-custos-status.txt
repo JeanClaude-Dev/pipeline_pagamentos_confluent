@@ -1,0 +1,17 @@
+Confluent Cloud - consulta de custo e estado dos recursos
+Periodo consultado: 2026-10-06 a 2026-10-07 (granularidade diaria).
+
+Billing cost list retornou:
+- CONNECT_NUM_TASKS / payments-cdc (lcc-228dy92): 4 task-hours, preco indicado de US$ 0.80 por task-hour, valor original US$ 3.20.
+- PROMO_CREDIT: -US$ 3.2001.
+
+Estado consultado:
+- Connector payments-cdc: RUNNING.
+- Flink statement velocity-fraud-rule-v3: STOPPED por solicitacao em 2026-10-06T18:29:36Z; offsets finais reportados: transactions 2011 e accounts 240.
+- Compute pool payments-flink (lfcp-pg532do): PROVISIONED, AWS sa-east-1, 0 CFU atual, maximo 5 CFUs. O pool nao foi removido.
+
+Ressalvas:
+- Esta consulta diaria nao e o custo final de todo o desafio; o billing pode atrasar e o retorno nao listou uma linha de custo Flink.
+- O saldo de creditos promocionais visto anteriormente no Console nao substitui a conciliacao do periodo completo.
+- O conector CDC continua ativo e o pool Flink continua provisionado; confirme a conciliacao e autorize qualquer remocao adicional.
+- A consulta `confluent kafka consumer group lag list` nao esta disponivel neste cluster Basic; o CLI exige cluster Dedicated. A evidencia de lag/received_bytes pela Metrics API continua pendente.

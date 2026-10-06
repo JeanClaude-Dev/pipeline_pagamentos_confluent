@@ -1,0 +1,19 @@
+.env
+.env.*
+!.env.example
+/e1438041-4957-48a9-b25d-f548ed80e1f5.pdf
+/Guia para Desafio Confluent Cloud.pdf
+
+# Logs e arquivos temporarios
+logs/
+*.log
+!evidencias/*.log
+
+# Binarios e caches
+*.avro
+*.class
+*.jar
+.venv/
+__pycache__/
+.DS_Store
+Thumbs.db

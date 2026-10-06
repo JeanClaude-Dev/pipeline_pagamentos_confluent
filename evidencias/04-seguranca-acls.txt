@@ -1,0 +1,20 @@
+Confluent Cloud - evidencias de service accounts e ACLs
+Environment: env-qq57zd
+Kafka cluster: lkc-mv5gjrq (Basic)
+
+Identidades confirmadas pelo CLI:
+- desafio-producer (sa-wz5g9x5): produtor e identidade usada pelo conector CDC.
+- desafio-consumer (sa-kgnr5yg): consumidor do topico de alertas.
+
+ACLs relevantes observadas:
+- Producer: CREATE, WRITE e DESCRIBE no prefixo payments.; WRITE e DESCRIBE no prefixo desafio.
+- Producer/CDC heartbeat: CREATE, WRITE e DESCRIBE no prefixo __debezium-heartbeat- e no topico interno existente.
+- Consumer: READ e DESCRIBE nos prefixos desafio. e payments.
+- Consumer groups: READ no prefixo desafio-; tambem existe uma ACL READ antiga para o prefixo desafio.
+
+As chaves nao fazem parte desta evidencia. O topico interno do heartbeat foi incluido porque o conector falhou sem essas permissoes.
+
+Tags de governanca PII e PCI foram criadas no Catalog do environment. A associacao aos campos ainda nao foi concluida: o Data Portal retornou HTTP 429 ao abrir o detalhe do schema.
+Campos para associar:
+- PII: payments.public.customers-value.document_number e payments.public.accounts-value.customer_id.
+- PCI: payments.public.cards-value.card_number.

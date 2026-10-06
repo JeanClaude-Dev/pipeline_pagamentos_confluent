@@ -1,0 +1,91 @@
+{
+  "origem": "Confluent Cloud, topico payments.public.transactions, valor Avro decodificado",
+  "captura": {
+    "registro": "cdc-evidence-20261006-001",
+    "particao": 0,
+    "offsets": [2007, 2010],
+    "sanitizacao": "Captura real; metadados internos do Debezium e do Postgres foram omitidos."
+  },
+  "eventos": [
+    {
+      "tipo": "INSERT",
+      "key": {
+        "transaction_id": "cdc-evidence-20261006-001"
+      },
+      "value": {
+        "before": null,
+        "after": {
+          "transaction_id": "cdc-evidence-20261006-001",
+          "account_id": "account-0001",
+          "card_id": "card-0001",
+          "merchant_id": "merchant-0001",
+          "amount": "25",
+          "currency": "BRL",
+          "status": "APPROVED",
+          "occurred_at": "2026-10-06T17:43:53.280997Z"
+        },
+        "op": "c"
+      },
+      "offset": 2007
+    },
+    {
+      "tipo": "UPDATE",
+      "key": {
+        "transaction_id": "cdc-evidence-20261006-001"
+      },
+      "value": {
+        "before": {
+          "transaction_id": "cdc-evidence-20261006-001",
+          "account_id": "account-0001",
+          "card_id": "card-0001",
+          "merchant_id": "merchant-0001",
+          "amount": "25",
+          "currency": "BRL",
+          "status": "APPROVED",
+          "occurred_at": "2026-10-06T17:43:53.280997Z"
+        },
+        "after": {
+          "transaction_id": "cdc-evidence-20261006-001",
+          "account_id": "account-0001",
+          "card_id": "card-0001",
+          "merchant_id": "merchant-0001",
+          "amount": "25",
+          "currency": "BRL",
+          "status": "REVIEW",
+          "occurred_at": "2026-10-06T17:43:53.280997Z"
+        },
+        "op": "u"
+      },
+      "offset": 2008
+    },
+    {
+      "tipo": "DELETE",
+      "key": {
+        "transaction_id": "cdc-evidence-20261006-001"
+      },
+      "value": {
+        "before": {
+          "transaction_id": "cdc-evidence-20261006-001",
+          "account_id": "account-0001",
+          "card_id": "card-0001",
+          "merchant_id": "merchant-0001",
+          "amount": "25",
+          "currency": "BRL",
+          "status": "REVIEW",
+          "occurred_at": "2026-10-06T17:43:53.280997Z"
+        },
+        "after": null,
+        "op": "d"
+      },
+      "offset": 2009
+    },
+    {
+      "tipo": "TOMBSTONE",
+      "key": {
+        "transaction_id": "cdc-evidence-20261006-001"
+      },
+      "value": null,
+      "offset": 2010
+    }
+  ]
+}

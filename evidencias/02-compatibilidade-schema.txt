@@ -1,0 +1,15 @@
+Global Schema Registry configuration (production default):
++---------------------+----------+
+| Compatibility Level | BACKWARD |
++---------------------+----------+
+Test-only subject compatibility set to FULL (production CDC subjects are unchanged):
+Successfully updated subject-level compatibility to "FULL" for subject "payments-compatibility-20261006-value".
+Add risk_level as [null,string], default null:
++------------+------+
+| Compatible | true |
++------------+------+
+Remove required account_id without a default:
++------------+-------+
+| Compatible | false |
++------------+-------+
+Note: under BACKWARD alone, removing a field is compatible because new readers ignore data fields they do not declare; FULL also checks the reverse direction and rejects this removal.

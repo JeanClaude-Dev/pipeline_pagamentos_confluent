@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "Account",
+  "namespace": "com.bootcamp.payments",
+  "doc": "Conta de pagamento. customer_id deve receber a tag PII no Schema Registry.",
+  "fields": [
+    { "name": "account_id", "type": "string" },
+    { "name": "customer_id", "type": "string" },
+    { "name": "status", "type": "string" },
+    { "name": "created_at", "type": { "type": "long", "logicalType": "timestamp-millis" } },
+    { "name": "updated_at", "type": { "type": "long", "logicalType": "timestamp-millis" } }
+  ]
+}
