@@ -1,0 +1,16 @@
+Confiabilidade - comportamento observado e recomendacoes
+
+Fluxo:
+Neon/PostgreSQL WAL -> Debezium payments-cdc (slot payments_slot) -> topicos CDC Avro -> Flink temporal join e regra MATCH_RECOGNIZE -> desafio.fraud.detected -> consumidor.
+
+Falhas e recuperacao:
+- O slot de replicacao mantem a posicao de leitura do CDC. Se o conector parar, verifique a saude do slot e o WAL retido antes de reinicia-lo; WAL acumulado pode consumir armazenamento no Postgres.
+- Se o statement Flink parar, nao ha novos alertas enquanto estiver parado. Registre o estado e os offsets mais recentes antes de retomar ou recriar o statement.
+- Nao assuma entrega sem duplicatas depois de falhas/retries. O consumidor deve tolerar reentrega e so confirmar o offset depois de persistir com sucesso o efeito de negocio.
+
+Idempotencia recomendada para um consumidor:
+- Para eventos CDC, use a chave transaction_id junto com op e mantenha o processamento idempotente por particao/offset Kafka.
+- O schema atual do alerta nao tem uma chave primaria nem transaction_id. Antes de aplicar um efeito externo, derive um identificador estavel, por exemplo card_id + first_transaction_at + last_transaction_at + transaction_count, e grave-o com restricao de unicidade na mesma transacao do efeito.
+- O modo append da tabela de transacoes trata UPDATE como novo evento e ignora DELETE para a regra; a deduplicacao nao corrige essa diferenca semantica.
+
+Limite desta evidencia: o projeto nao inclui codigo de consumidor nem teste de falha/reentrega. A chave de alerta acima e uma recomendacao de desenho, nao um comportamento ja implementado ou medido.

@@ -147,13 +147,14 @@ Evidencias reais capturadas ate agora:
 - `evidencias/03-alerta-fraude.json`: alerta Avro real da carga seed; os tres registros sinteticos ainda nao foram correlacionados com a saida.
 - `evidencias/04-seguranca-acls.txt`: identidades e ACLs observadas no cluster.
 - `evidencias/05-custos-status.txt`: consulta diaria de billing e estado dos recursos, ainda sem conciliacao final.
+- `evidencias/06-confiabilidade.txt`: fluxo, recuperacao e estrategia recomendada de idempotencia; nao existe consumidor implementado neste repositorio.
 
 Antes da entrega, complete as evidencias pendentes abaixo:
 
 - **Observabilidade:** pico de `received_bytes` e lag do consumer group pela Metrics API. O CLI de lag informa que a operacao exige cluster Dedicated e nao funciona no cluster Basic deste desafio; veja `evidencias/05-custos-status.txt`.
 - **Seguranca:** associar as tags PII/PCI ja criadas aos campos de schema indicados na secao 3; a tabela de ACLs e o estado das tags estao em `evidencias/04-seguranca-acls.txt`.
 - **Custos:** conciliar o periodo completo do teste e registrar duas alavancas usadas/possiveis (desligar o cluster quando ocioso e reduzir retencao/volume de dados).
-- **Confiabilidade:** desenhe o caminho Postgres -> conector -> Kafka -> Flink -> consumidor; explique o efeito de falha e como o consumidor evita duplicidade com chave/idempotencia.
+- **Confiabilidade:** implementar e testar um consumidor idempotente; o desenho operacional recomendado esta em `evidencias/06-confiabilidade.txt`.
 - **Teardown:** execute `bash teardown.sh` como checklist, depois exclua statements, conector, topicos e cluster no painel. Exclua o environment somente se estiver vazio e for exclusivo deste desafio.
 
 Nao declare o teardown concluido enquanto statements, conector ou cluster ainda estiverem ativos. Registre a data/hora e o periodo consultado nas evidencias de custo; um valor de uma janela parcial nao representa o custo total do desafio.
