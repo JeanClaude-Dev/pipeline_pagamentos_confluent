@@ -6,17 +6,22 @@ Billing cost list retornou:
 - PROMO_CREDIT: -US$ 3.2001.
 
 Estado consultado:
-- Connector payments-cdc: RUNNING.
 - Flink statement velocity-fraud-rule-v3: STOPPED apos reteste em 2026-10-06T19:03:08Z; offsets finais reportados: transactions 2015 e accounts 240.
 - Compute pool payments-flink (lfcp-pg532do): PROVISIONED, AWS sa-east-1, 0 CFU atual, maximo 5 CFUs. O pool nao foi removido.
 - Apos a captura, sete linhas temporarias de teste foram removidas do Postgres; a tabela transactions voltou a 2.000 linhas.
+- Em 2026-10-06, o inventario do Console mostrou o cluster desafio-basic como Running e o pool payments-flink como Running.
+- O inventario do cluster mostrou um conector: payments-cdc, RUNNING com uma tarefa, aproximadamente 3 bytes/s e 0 mensagens/s. O dialogo de exclusao indicou US$ 0.80/hora mais US$ 0.04/GB de uso.
+- Em 2026-10-06, payments-cdc foi excluido pelo Console. A rota de conectores passou a redirecionar para o catalogo de plugins; a verificacao da lista ainda apresenta erros de API 400/429.
+- O inventario de topicos antes da exclusao do conector mostrou sete topicos: __debezium-heartbeat-lcc-228dy92.payments, desafio.fraud.detected e os cinco pagamentos payments.public.* (accounts, cards, customers, merchants, transactions).
+- A listagem Flink mostrou 23 statements no environment; o filtro indicou o pool payments-flink, mas os detalhes das linhas nao carregaram. O pool nao foi removido para evitar afetar statements cuja propriedade/dependencia nao foi confirmada.
 - Alavanca de custo usada: o statement Flink foi parado apos o teste e o pool chegou a 0 CFU; o pool continua provisionado, portanto isso nao equivale a remover todos os custos.
 - Alavanca adicional possivel: reduzir retencao e volume dos topicos de teste; nao registrada como aplicada neste ambiente.
 
 Ressalvas:
 - Esta consulta diaria nao e o custo final de todo o desafio; o billing pode atrasar e o retorno nao listou uma linha de custo Flink.
 - O saldo de creditos promocionais visto anteriormente no Console nao substitui a conciliacao do periodo completo.
-- O conector CDC continua ativo e o pool Flink continua provisionado; confirme a conciliacao e autorize qualquer remocao adicional.
+- O conector CDC foi excluido; o cluster Kafka e o pool Flink permanecem. O inventario de statements e consumidores nao carregou por completo, portanto os topicos, cluster e pool nao foram apagados.
 - A consulta `confluent kafka consumer group lag list` nao esta disponivel neste cluster Basic; o CLI exige cluster Dedicated. A evidencia de lag/received_bytes pela Metrics API continua pendente.
 - Tentativa de consultar `io.confluent.kafka.server/received_bytes` pela Metrics API em 2026-10-06 retornou HTTP 401 com a credencial Cloud configurada; nenhum datapoint foi coletado.
 - O painel Metrics carregou com erros HTTP 429/400 no momento da verificacao; nenhum pico confiavel pode ser documentado a partir dessa tela.
+- A consulta de inventario/metricas do Console tambem apresentou HTTP 400/429; o total de statements e conhecido, mas as respectivas linhas e dependencias nao ficaram disponiveis para verificar.

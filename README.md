@@ -179,9 +179,9 @@ Os testes simulam falha no commit do offset apos a persistencia e verificam que 
 - **Seguranca:** associar as tags PII/PCI ja criadas aos campos de schema indicados na secao 3; a tabela de ACLs e o estado das tags estao em `evidencias/04-seguranca-acls.txt`.
 - **Custos:** conciliar o periodo completo do teste e registrar duas alavancas usadas/possiveis (desligar o cluster quando ocioso e reduzir retencao/volume de dados).
 - **Confiabilidade:** consumidor implementado e testes locais aprovados; falta corrigir a permissao/credencial de leitura do Schema Registry e repetir o smoke test cloud.
-- **Recursos cloud:** o statement de fraude esta parado, mas o conector CDC continua RUNNING e o pool Flink permanece provisionado. `teardown.sh` descreve a remocao manual; nao executa exclusoes automaticamente para evitar afetar recursos compartilhados.
+- **Recursos cloud:** o statement de fraude esta parado e o conector `payments-cdc` foi excluido. O cluster Kafka e o pool Flink permanecem ativos. O Console lista 23 statements, mas nao carregou suas linhas/detalhes para confirmar dependencias; `teardown.sh` descreve a limpeza manual sem apagar recursos automaticamente.
 
-O custo documentado cobre apenas uma janela parcial; nao representa o custo total do periodo. A evidência detalha data, status observado e limitacoes da consulta. Nao remova recursos compartilhados sem verificar a propriedade e o impacto da exclusao.
+O custo documentado cobre apenas uma janela parcial; nao representa o custo total do periodo. O Console indicou que o conector removido custava US$ 0.80/hora mais US$ 0.04/GB de uso. A evidencia detalha data, status observado e limitacoes da consulta. Topicos, cluster e pool nao foram removidos sem confirmacao das dependencias dos statements e consumidores.
 
 ## Configuracao local e seguranca
 
