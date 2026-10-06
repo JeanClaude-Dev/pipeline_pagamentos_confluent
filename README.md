@@ -177,11 +177,11 @@ Os testes simulam falha no commit do offset apos a persistencia e verificam que 
 
 - **Observabilidade:** pico de `received_bytes` e lag do consumer group pela Metrics API. O CLI de lag informa que a operacao exige cluster Dedicated e nao funciona no cluster Basic utilizado; a tentativa na Metrics API retornou HTTP 401. Veja `evidencias/05-custos-status.txt`.
 - **Seguranca:** associar as tags PII/PCI ja criadas aos campos de schema indicados na secao 3; a tabela de ACLs e o estado das tags estao em `evidencias/04-seguranca-acls.txt`.
-- **Custos:** conciliar o periodo completo do teste e registrar duas alavancas usadas/possiveis (desligar o cluster quando ocioso e reduzir retencao/volume de dados).
-- **Confiabilidade:** consumidor implementado e testes locais aprovados; falta corrigir a permissao/credencial de leitura do Schema Registry e repetir o smoke test cloud.
-- **Recursos cloud:** o statement de fraude esta parado e o conector `payments-cdc` foi excluido. O cluster Kafka e o pool Flink permanecem ativos. O Console lista 23 statements, mas nao carregou suas linhas/detalhes para confirmar dependencias; `teardown.sh` descreve a limpeza manual sem apagar recursos automaticamente.
+- **Custos:** conciliar o billing apos o teardown. O relatorio existente cobre uma janela parcial, nao o total final.
+- **Confiabilidade:** consumidor implementado e testes locais aprovados; o smoke test cloud foi bloqueado por HTTP 403 no Schema Registry antes do teardown.
+- **Recursos cloud:** o conector CDC, os 23 statements Flink, o pool Flink e o cluster Kafka foram removidos. A verificacao no Console confirmou zero clusters, zero compute pools e zero statements; a exclusao do cluster removeu os topicos e seus dados. O environment e o Schema Registry permanecem para preservar os metadados; veja `evidencias/05-custos-status.txt`.
 
-O custo documentado cobre apenas uma janela parcial; nao representa o custo total do periodo. O Console indicou que o conector removido custava US$ 0.80/hora mais US$ 0.04/GB de uso. A evidencia detalha data, status observado e limitacoes da consulta. Topicos, cluster e pool nao foram removidos sem confirmacao das dependencias dos statements e consumidores.
+O custo documentado cobre apenas uma janela parcial; nao representa o custo total do periodo. O Console indicou que o conector removido custava US$ 0.80/hora mais US$ 0.04/GB de uso. O environment e o Schema Registry nao foram excluidos; confirme no billing se existem custos adicionais antes de considerar o encerramento financeiro concluido.
 
 ## Configuracao local e seguranca
 
