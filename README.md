@@ -144,7 +144,7 @@ Evidencias reais capturadas ate agora:
 
 - `evidencias/01-envelopes-cdc.json`: INSERT, UPDATE, DELETE e tombstone do mesmo registro CDC, com offsets reais.
 - `evidencias/02-compatibilidade-schema.txt`: BACKWARD global e testes com subject FULL isolado.
-- `evidencias/03-alerta-fraude.json`: alerta Avro real da carga seed; os tres registros sinteticos ainda nao foram correlacionados com a saida.
+- `evidencias/03-alerta-fraude.json`: alerta Avro real da carga seed e alerta de reteste correlacionado aos tres eventos aprovados; o primeiro lote `fraud-evidence` nao gerou alerta observavel.
 - `evidencias/04-seguranca-acls.txt`: identidades e ACLs observadas no cluster.
 - `evidencias/05-custos-status.txt`: consulta diaria de billing e estado dos recursos, ainda sem conciliacao final.
 - `evidencias/06-confiabilidade.txt`: fluxo, recuperacao e estrategia recomendada de idempotencia; nao existe consumidor implementado neste repositorio.

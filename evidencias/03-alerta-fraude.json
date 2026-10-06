@@ -51,6 +51,62 @@
       },
       "timestamp": "2026-10-06T18:29:36Z"
     },
-    "resultado": "Nao confirmada. Os tres eventos aprovados chegaram ao topico de entrada e o statement avancou ate o offset 2011, mas nao foi localizado alerta correspondente na leitura do topico de saida. Uma captura filtrada de 396 alertas continha registros ate 2026-10-06T12:49:30.920Z, anterior aos eventos de teste."
+    "resultado": "Os tres IDs fraud-evidence chegaram ao topico de entrada, mas nao foram correlacionados a um alerta de saida. Uma captura filtrada de 396 alertas continha registros ate 2026-10-06T12:49:30.920Z, anterior aos eventos de teste."
+  },
+  "reteste_confirmado": {
+    "entradas": [
+      {
+        "transaction_id": "fraud-retest-20261006-001",
+        "partition": 0,
+        "offset": 2011,
+        "op": "c",
+        "status": "APPROVED",
+        "occurred_at": "2026-10-06T18:56:13.964787Z"
+      },
+      {
+        "transaction_id": "fraud-retest-20261006-002",
+        "partition": 0,
+        "offset": 2012,
+        "op": "c",
+        "status": "APPROVED",
+        "occurred_at": "2026-10-06T18:56:13.964787Z"
+      },
+      {
+        "transaction_id": "fraud-retest-20261006-003",
+        "partition": 0,
+        "offset": 2013,
+        "op": "c",
+        "status": "APPROVED",
+        "occurred_at": "2026-10-06T18:56:13.964787Z"
+      }
+    ],
+    "marcador_event_time": {
+      "transaction_id": "fraud-watermark-marker-20261006",
+      "status": "DECLINED",
+      "occurred_at": "2026-10-06T18:57:38.818642Z",
+      "funcao": "Evento posterior para avancar o tempo do fluxo sem adicionar outro candidato aprovado."
+    },
+    "alerta_saida": {
+      "topic": "desafio.fraud.detected",
+      "partition": 5,
+      "offset": 0,
+      "card_id": "card-0001",
+      "account_id": "account-0001",
+      "customer_id": "customer-0001",
+      "transaction_count": 3,
+      "first_transaction_at": "2026-10-06T18:56:14.449Z",
+      "last_transaction_at": "2026-10-06T18:56:14.45Z"
+    },
+    "observacao": "O alerta correspondente apareceu na leitura do topico apos a chegada do marcador posterior; isso comprova a regra para o reteste e evidencia a importancia do progresso de event-time."
+  },
+  "encerramento_do_reteste": {
+    "statement_status": "STOPPED",
+    "statement_timestamp": "2026-10-06T19:03:08Z",
+    "latest_offsets": {
+      "payments.public.transactions": "partition:0,offset:2015",
+      "payments.public.accounts": "partition:0,offset:240"
+    },
+    "database_transactions_after_cleanup": 2000,
+    "temporary_rows_removed": 7
   }
 }

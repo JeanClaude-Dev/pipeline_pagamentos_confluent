@@ -7,8 +7,9 @@ Billing cost list retornou:
 
 Estado consultado:
 - Connector payments-cdc: RUNNING.
-- Flink statement velocity-fraud-rule-v3: STOPPED por solicitacao em 2026-10-06T18:29:36Z; offsets finais reportados: transactions 2011 e accounts 240.
+- Flink statement velocity-fraud-rule-v3: STOPPED apos reteste em 2026-10-06T19:03:08Z; offsets finais reportados: transactions 2015 e accounts 240.
 - Compute pool payments-flink (lfcp-pg532do): PROVISIONED, AWS sa-east-1, 0 CFU atual, maximo 5 CFUs. O pool nao foi removido.
+- Apos a captura, sete linhas temporarias de teste foram removidas do Postgres; a tabela transactions voltou a 2.000 linhas.
 
 Ressalvas:
 - Esta consulta diaria nao e o custo final de todo o desafio; o billing pode atrasar e o retorno nao listou uma linha de custo Flink.
